@@ -1,0 +1,2048 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>CloudMiner</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-color: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #252525;
+            --accent: #00d4aa;
+            --accent-hover: #00e6b8;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --warning: #ffb800;
+            --danger: #ff4757;
+            --success: #00d4aa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color);
+            background-image: url('https://cdn.cagrito.ru/wp-content/uploads/2022/01/Duck.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Overlay to darken background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 15, 15, 0.85);
+            z-index: -1;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px var(--accent); }
+            50% { box-shadow: 0 0 20px var(--accent), 0 0 30px var(--accent); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+
+        .slide-up {
+            animation: fadeInUp 0.4s ease forwards;
+        }
+
+        .miner-card:active {
+            animation: pulse 0.3s ease;
+        }
+
+        .pay-btn {
+            transition: all 0.2s ease;
+        }
+
+        .pay-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3);
+        }
+
+        .pay-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .nav-item {
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:active {
+            transform: scale(0.95);
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 100;
+            border-bottom: 1px solid #333;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .header-balance {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .header-balance-icon {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #f7931a, #ffab40);
+            border-radius: 50%;
+        }
+
+        .menu-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-card);
+            border: none;
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Main content */
+        .main {
+            padding: 72px 16px 80px;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+
+        .tab:hover:not(.active) {
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        /* Section */
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Miner Card */
+        .miner-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: transform 0.2s;
+        }
+
+        .miner-card:active {
+            transform: scale(0.98);
+        }
+
+        .miner-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .miner-info {
+            flex: 1;
+        }
+
+        .miner-name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .miner-stats {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .miner-income {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .miner-price {
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        .buy-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .buy-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .buy-btn:disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        /* My Miners */
+        .miner-owned {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .miner-count {
+            background: var(--accent);
+            color: #000;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        /* Rating */
+        .rating-item {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .rating-item.top-3 {
+            border: 1px solid var(--warning);
+        }
+
+        .rating-position {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            background: var(--bg-secondary);
+        }
+
+        .rating-item:nth-child(1) .rating-position {
+            background: linear-gradient(135deg, #ffd700, #ffb800);
+            color: #000;
+        }
+
+        .rating-item:nth-child(2) .rating-position {
+            background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+            color: #000;
+        }
+
+        .rating-item:nth-child(3) .rating-position {
+            background: linear-gradient(135deg, #cd7f32, #a66828);
+            color: #000;
+        }
+
+        .rating-info {
+            flex: 1;
+        }
+
+        .rating-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .rating-income {
+            font-size: 12px;
+            color: var(--success);
+        }
+
+        .rating-reward {
+            font-size: 12px;
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: var(--bg-secondary);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid #333;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-secondary);
+            font-size: 10px;
+            cursor: pointer;
+            padding: 8px 6px;
+            border-radius: 12px;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+        }
+
+        .nav-item:hover:not(.active) {
+            color: var(--text-primary);
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+
+        /* Sidebar */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .sidebar-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 300px;
+            max-width: 85%;
+            height: 100%;
+            background: var(--bg-secondary);
+            z-index: 201;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+            overflow-y: auto;
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-card);
+            border: none;
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .sidebar-content {
+            padding: 16px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 24px;
+        }
+
+        .sidebar-section-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .profile-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), #00a080);
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+        }
+
+        .profile-name {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .profile-rank {
+            font-size: 14px;
+            color: var(--warning);
+            margin-bottom: 16px;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .profile-stat {
+            background: var(--bg-secondary);
+            padding: 12px;
+            border-radius: 10px;
+        }
+
+        .profile-stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .profile-stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .referral-link {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .referral-link-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .referral-link-box {
+            display: flex;
+            gap: 8px;
+        }
+
+        .referral-link-input {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .copy-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .referral-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .referral-stat {
+            flex: 1;
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .referral-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .referral-stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .menu-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .menu-link:hover {
+            background: #333;
+        }
+
+        .menu-link-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 360px;
+            padding: 24px;
+            transform: scale(0.9);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.open .modal {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-miner {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .modal-miner-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        .modal-miner-name {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .modal-miner-income {
+            font-size: 14px;
+            color: var(--success);
+        }
+
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .quantity-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--bg-card);
+            border: none;
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .quantity-btn:hover {
+            background: #444;
+        }
+
+        .quantity-value {
+            font-size: 24px;
+            font-weight: 700;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .modal-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .modal-total-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .modal-total-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--warning);
+        }
+
+        .pay-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #00d4aa, #00a080);
+            color: #000;
+            border: none;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .pay-btn:hover {
+            transform: scale(1.02);
+        }
+
+        .pay-btn:active {
+            transform: scale(0.98);
+        }
+
+        .pay-methods {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            justify-content: center;
+        }
+
+        .pay-method {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .pay-method.active {
+            background: var(--accent);
+            color: #000;
+        }
+
+        /* Success Modal */
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #00d4aa, #00a080);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto 20px;
+        }
+
+        .success-title {
+            font-size: 22px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .success-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        /* Loader */
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 40px auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .empty-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip-text {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .tooltip:hover .tooltip-text {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-up {
+            animation: slideUp 0.3s ease forwards;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+        <span class="header-title">⚡ DuckMiner</span>
+        <div class="header-balance">
+            <div class="header-balance-icon"></div>
+            <span id="headerBalance">0</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Shop Section -->
+        <section id="shopSection" class="section active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="incomePerHour">0</div>
+                    <div class="stat-label">$/час</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalEarned">0</div>
+                    <div class="stat-label">Всего заработано</div>
+                </div>
+            </div>
+
+            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                💡 Нажмите на майнер для покупки
+            </div>
+
+            <div id="minersList"></div>
+        </section>
+
+        <!-- My Miners Section -->
+        <section id="myMinersSection" class="section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="myIncomePerHour">0</div>
+                    <div class="stat-label">$/час</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="myBalance">0</div>
+                    <div class="stat-label">Баланс</div>
+                </div>
+            </div>
+
+            <div id="myMinersList"></div>
+        </section>
+
+        <!-- Rating Section -->
+        <section id="ratingSection" class="section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="myRank">#—</div>
+                    <div class="stat-label">Ваше место</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="weeklyReward">0</div>
+                    <div class="stat-label">Награда недели</div>
+                </div>
+            </div>
+
+            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                🏆 Топ-20 получают награды каждую неделю
+            </div>
+
+            <div id="ratingList"></div>
+        </section>
+
+        <!-- Tasks Section -->
+        <section id="tasksSection" class="section">
+            <div class="stats-grid" style="margin-bottom: 20px;">
+                <div class="stat-card">
+                    <div class="stat-value" id="streakDays">0</div>
+                    <div class="stat-label">Дней подряд</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="wheelSpinsCount">0</div>
+                    <div class="stat-label">Спинов колеса</div>
+                </div>
+            </div>
+
+            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                📋 Выполняйте задания для получения наград
+            </div>
+
+            <div id="tasksList"></div>
+
+            <div style="margin-top: 24px;">
+                <button class="pay-btn" style="width: 100%;" onclick="showWheel()" id="wheelBtn">
+                    🎰 Колесо удачи
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="showSection('shop')" data-section="shop">
+            <span class="nav-icon">🛒</span>
+            <span>Магазин</span>
+        </button>
+        <button class="nav-item" onclick="showSection('myMiners')" data-section="myMiners">
+            <span class="nav-icon">💼</span>
+            <span>Мои</span>
+        </button>
+        <button class="nav-item" onclick="showSection('tasks')" data-section="tasks">
+            <span class="nav-icon">📋</span>
+            <span>Задания</span>
+        </button>
+        <button class="nav-item" onclick="showSection('rating')" data-section="rating">
+            <span class="nav-icon">🏆</span>
+            <span>Рейтинг</span>
+        </button>
+    </nav>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Меню</span>
+            <button class="close-btn" onclick="toggleSidebar()">✕</button>
+        </div>
+        <div class="sidebar-content">
+            <!-- Profile -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">👤 Профиль</div>
+                <div class="profile-card">
+                    <div class="profile-avatar" id="profileAvatar">👤</div>
+                    <div class="profile-name" id="profileName">Загрузка...</div>
+                    <div class="profile-rank" id="profileRank">Место в рейтинге: #—</div>
+                    <div class="profile-stats">
+                        <div class="profile-stat">
+                            <div class="profile-stat-value" id="profileTotalEarned">0</div>
+                            <div class="profile-stat-label">Заработано</div>
+                        </div>
+                        <div class="profile-stat">
+                            <div class="profile-stat-value" id="profileIncome">0/h</div>
+                            <div class="profile-stat-label">Доход</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Referral -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">👥 Реферальная система</div>
+                <div class="referral-link">
+                    <div class="referral-link-label">Ваша реферальная ссылка:</div>
+                    <div class="referral-link-box">
+                        <input type="text" class="referral-link-input" id="referralLink" readonly value="https://t.me/MrDimkaBot/cloudminer?start=...">
+                        <button class="copy-btn" onclick="copyReferralLink()">📋</button>
+                    </div>
+                    <div class="referral-stats">
+                        <div class="referral-stat">
+                            <div class="referral-stat-value" id="referralCount">0</div>
+                            <div class="referral-stat-label">Рефералов</div>
+                        </div>
+                        <div class="referral-stat">
+                            <div class="referral-stat-value" id="referralEarnings">0</div>
+                            <div class="referral-stat-label">Заработано</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Menu Links -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">📋 Навигация</div>
+                <button class="menu-link" onclick="showUpgradeModal()">
+                    <span class="menu-link-icon">⬆️</span>
+                    Улучшить майнер
+                </button>
+                <button class="menu-link" onclick="showFAQ()">
+                    <span class="menu-link-icon">📖</span>
+                    FAQ / Правила
+                </button>
+                <a class="menu-link" href="https://t.me/support_cloudminer" target="_blank">
+                    <span class="menu-link-icon">📞</span>
+                    Поддержка
+                </a>
+                <button class="menu-link" onclick="topUpBalance()">
+                    <span class="menu-link-icon">💰</span>
+                    Пополнить баланс
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Buy Modal -->
+    <div class="modal-overlay" id="buyModal">
+        <div class="modal">
+            <div class="modal-title">Покупка майнера</div>
+            <div class="modal-miner">
+                <div class="modal-miner-icon" id="modalMinerIcon">⛏️</div>
+                <div>
+                    <div class="modal-miner-name" id="modalMinerName">—</div>
+                    <div class="modal-miner-income" id="modalMinerIncome">—/час</div>
+                </div>
+            </div>
+
+            <div class="pay-methods">
+                <span class="pay-method active">USDT</span>
+                <span class="pay-method">BTC</span>
+                <span class="pay-method">ETH</span>
+            </div>
+
+            <div class="quantity-control">
+                <button class="quantity-btn" onclick="changeQuantity(-1)">−</button>
+                <span class="quantity-value" id="quantityValue">1</span>
+                <button class="quantity-btn" onclick="changeQuantity(1)">+</button>
+            </div>
+
+            <div class="modal-total">
+                <span class="modal-total-label">Итого:</span>
+                <span class="modal-total-value" id="modalTotal">0 $</span>
+            </div>
+
+            <button class="pay-btn" onclick="processPayment()">
+                💳 Оплатить
+            </button>
+
+            <div style="font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 12px;">
+                ⚠️ Это демо-режим. Оплата — заглушка.
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal-overlay" id="successModal">
+        <div class="modal">
+            <div class="success-icon">✓</div>
+            <div class="success-title">Покупка успешна!</div>
+            <div class="success-text">Майнер добавлен в ваш список. Доход начисляется автоматически.</div>
+            <button class="pay-btn" onclick="closeSuccessModal()">Отлично!</button>
+        </div>
+    </div>
+
+    <!-- Single Miner Upgrade Modal -->
+    <div class="modal-overlay" id="singleUpgradeModal">
+        <div class="modal" style="max-width: 360px; text-align: center;">
+            <div class="modal-title" id="singleMinerName">—</div>
+            <div style="font-size: 48px; margin: 20px 0;" id="singleMinerIcon">⛏️</div>
+            <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: var(--text-secondary);">Уровень</span>
+                    <span id="singleMinerLevel" style="font-weight: 700;">0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: var(--text-secondary);">Доход сейчас</span>
+                    <span id="singleMinerIncome" style="font-weight: 700; color: var(--accent);">0$/ч</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-secondary);">Доход после</span>
+                    <span id="singleMinerNextIncome" style="font-weight: 700; color: var(--success);">0$/ч</span>
+                </div>
+            </div>
+            <button class="pay-btn" id="singleUpgradeBtn" style="width: 100%;" onclick="upgradeMiner(0, 0)">
+                💎 Улучшить за <span id="singleUpgradeCost">0$</span>
+            </button>
+            <button class="pay-btn" style="margin-top: 10px; background: var(--bg-card); color: var(--text-primary);" onclick="closeSingleUpgradeModal()">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- FAQ Modal -->
+    <div class="modal-overlay" id="faqModal">
+        <div class="modal" style="max-width: 400px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-title">📖 FAQ</div>
+            <div style="text-align: left; font-size: 14px; line-height: 1.6;">
+                <h4 style="color: var(--accent); margin: 16px 0 8px;">Как заработать?</h4>
+                <p style="color: var(--text-secondary);">Покупайте майнеры в магазине. Они приносят доход каждый час. Чем дороже майнер — тем больше заработок.</p>
+
+                <h4 style="color: var(--accent); margin: 16px 0 8px;">Это реальный майнинг?</h4>
+                <p style="color: var(--text-secondary);">Нет. Это игровая симуляция с виртуальной валютой. Никаких реальных криптовалют добываться не будет.</p>
+
+                <h4 style="color: var(--accent); margin: 16px 0 8px;">Можно ли вывести деньги?</h4>
+                <p style="color: var(--text-secondary);">В демо-версии вывод не предусмотрен. Это симулятор для ознакомления с механикой.</p>
+
+                <h4 style="color: var(--accent); margin: 16px 0 8px;">Как работают рефералы?</h4>
+                <p style="color: var(--text-secondary);">Делитесь реферальной ссылкой. Вы получаете 3% от дохода приглашённых пользователей.</p>
+
+                <h4 style="color: var(--accent); margin: 16px 0 8px;">Как начисляется доход?</h4>
+                <p style="color: var(--text-secondary);">Доход начисляется каждые 10 секунд. Итоговый доход за час равен сумме дохода всех майнеров.</p>
+            </div>
+            <button class="pay-btn" style="margin-top: 20px;" onclick="closeFAQ()">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Tasks Modal -->
+    <div class="modal-overlay" id="tasksModal">
+        <div class="modal" style="max-width: 400px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-title">📋 Ежедневные задания</div>
+            <div id="tasksList"></div>
+            <button class="pay-btn" style="margin-top: 16px;" onclick="closeTasksModal()">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Wheel Modal -->
+    <div class="modal-overlay" id="wheelModal">
+        <div class="modal" style="max-width: 360px; text-align: center;">
+            <div class="modal-title">🎰 Колесо удачи</div>
+            <div id="wheelContainer" style="margin: 20px 0; position: relative;">
+                <div id="wheel" style="width: 280px; height: 280px; border-radius: 50%; background: conic-gradient(#00d4aa 0deg 45deg, #ffb800 45deg 90deg, #ff4757 90deg 135deg, #00d4aa 135deg 180deg, #ffb800 180deg 225deg, #ff4757 225deg 270deg, #00d4aa 270deg 315deg, #ffb800 315deg 360deg); margin: 0 auto; position: relative; transition: transform 3s cubic-bezier(0.2, 0.8, 0.3, 1);">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; background: var(--bg-secondary); border-radius: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; font-size: 24px;">🎯</div>
+                </div>
+                <div id="wheelPointer" style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 30px;">▼</div>
+            </div>
+            <div id="wheelResult" style="font-size: 18px; font-weight: 700; margin: 16px 0; min-height: 30px;"></div>
+            <div id="wheelTimer" style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;"></div>
+            <button class="pay-btn" id="spinBtn" onclick="spinWheel()">Крутить!</button>
+            <button class="pay-btn" style="margin-top: 10px; background: var(--bg-card); color: var(--text-primary);" onclick="closeWheelModal()">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Upgrade Modal -->
+    <div class="modal-overlay" id="upgradeModal">
+        <div class="modal" style="max-width: 400px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-title">⬆️ Улучшение майнера</div>
+            <div id="upgradeMinersList"></div>
+            <button class="pay-btn" style="margin-top: 16px;" onclick="closeUpgradeModal()">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal" style="max-width: 360px; text-align: center;">
+            <div class="modal-title">👥 Пригласи друга</div>
+            <div style="font-size: 14px; color: var(--text-secondary); margin: 16px 0;">
+                Поделитесь ссылкой с другом и получите награду!
+            </div>
+            <div class="referral-link-box" style="margin-bottom: 16px;">
+                <input type="text" class="referral-link-input" id="shareReferralLink" readonly value="">
+                <button class="copy-btn" onclick="copyShareLink()">📋</button>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                <button class="pay-btn" style="flex: 1; min-width: 120px;" onclick="shareViaTelegram()">
+                    📢 Отправить в чат
+                </button>
+                <button class="pay-btn" style="flex: 1; min-width: 120px; background: var(--bg-card); color: var(--text-primary);" onclick="closeShareModal()">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONSTANTS =====
+        // 2 weeks = 336 hours for payback
+        const MINERS = [
+            { id: 1, name: 'Pico Miner', price: 5, income: 0.015, icon: '🔌' },
+            { id: 2, name: 'Nano Miner', price: 15, income: 0.045, icon: '📱' },
+            { id: 3, name: 'Micro Rig', price: 50, income: 0.15, icon: '💻' },
+            { id: 4, name: 'Mini Farm', price: 100, income: 0.30, icon: '🖥️' },
+            { id: 5, name: 'Office Rig', price: 250, income: 0.75, icon: '🖥️' },
+            { id: 6, name: 'Garage Farm', price: 500, income: 1.50, icon: '🏭' },
+            { id: 7, name: 'Industrial', price: 750, income: 2.25, icon: '🏢' },
+            { id: 8, name: 'Mega Cluster', price: 1000, income: 3.00, icon: '🌐' },
+            { id: 9, name: 'Quantum Core', price: 2000, income: 6.00, icon: '⚛️' },
+            { id: 10, name: 'Hyper Reactor', price: 5000, income: 15.00, icon: '⚡' },
+        ];
+
+        const REWARDS = {
+            1: 1000,
+            2: 500,
+            3: 250,
+            4: 200,
+            5: 150,
+            6: 125,
+            7: 100,
+            8: 90,
+            9: 80,
+            10: 70,
+            11: 60,
+            12: 55,
+            13: 50,
+            14: 45,
+            15: 40,
+            16: 35,
+            17: 30,
+            18: 25,
+            19: 20,
+            20: 15,
+        };
+
+        // ===== STATE =====
+        let user = {
+            id: 123456,
+            name: 'Пользователь',
+            balance: 0,
+            totalEarned: 0,
+            miners: [], // { id, count, purchasedAt (timestamp) }
+            referralCode: 'abc123',
+            referredBy: null,
+            rank: null,
+        };
+
+        let selectedMiner = null;
+        let quantity = 1;
+        let lastBonusClaim = null;
+        let incomeTimer = null;
+
+        // ===== DAILY TASKS =====
+        const TASKS = [
+            { id: 'login', title: 'Ежедневный вход', description: 'Заходи каждый день!', reward: 0.01, target: 1, progress: 0, type: 'daily_streak' },
+            { id: 'refer', title: 'Пригласи друга', description: 'Получи реферала — 1 спин + 0.1$', reward: 0.1, target: 1, progress: 0, type: 'once' },
+        ];
+
+        let dailyStreak = 0; // Track login streak (1-30)
+        let wheelSpins = 0; // Earned via referrals
+
+        const WHEEL_PRIZES = [
+            { label: 'x1.5', chance: 20, type: 'multiplier', value: 1.5, duration: 3600 },
+            { label: 'x2', chance: 15, type: 'multiplier', value: 2, duration: 1800 },
+            { label: 'x3', chance: 5, type: 'multiplier', value: 3, duration: 600 },
+            { label: '+5$', chance: 25, type: 'balance', value: 5 },
+            { label: '+15$', chance: 20, type: 'balance', value: 15 },
+            { label: '+50$', chance: 10, type: 'balance', value: 50 },
+            { label: 'Мимо', chance: 5, type: 'none', value: 0 },
+        ];
+
+        let activeBoost = null; // { type, value, endTime }
+        let lastWheelSpin = null; // Kept for boost timer, not cooldown
+        let completedTasks = [];
+
+        function getWheelCooldown() {
+            // Wheel is available based on earned spins, not time-based
+            return wheelSpins > 0 ? 0 : -1;
+        }
+
+        function showTasks() {
+            renderTasks();
+            document.getElementById('tasksModal').classList.add('open');
+        }
+
+        function closeTasksModal() {
+            document.getElementById('tasksModal').classList.remove('open');
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasksList');
+            const today = new Date().toDateString();
+
+            container.innerHTML = TASKS.map(task => {
+                const todayCompleted = completedTasks.some(t => t.id === task.id && t.date === today);
+
+                if (task.type === 'daily_streak') {
+                    const currentDay = dailyStreak;
+                    const reward = (currentDay + 1) * 0.01; // Next reward
+                    return `
+                    <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-weight: 600;">${task.title}</div>
+                            <div style="color: var(--warning); font-weight: 600;">День ${currentDay + 1}: +${reward.toFixed(2)}$</div>
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">День ${currentDay + 1}/30 • Струк: ${currentDay} дней</div>
+                        <div style="background: var(--bg-secondary); height: 6px; border-radius: 3px; margin-bottom: 8px;">
+                            <div style="background: var(--accent); height: 100%; border-radius: 3px; width: ${(currentDay / 30) * 100}%"></div>
+                        </div>
+                        <button class="pay-btn" style="width: 100%; ${todayCompleted ? 'background: #444;' : ''}"
+                            ${todayCompleted ? 'disabled' : ''} onclick="claimTask('${task.id}')">
+                            ${todayCompleted ? '✓ Выполнено' : 'Забрать награду'}
+                        </button>
+                    </div>
+                    `;
+                } else {
+                    const isReferTask = task.id === 'refer';
+                    return `
+                    <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-weight: 600;">${task.title}</div>
+                            <div style="color: var(--warning); font-weight: 600;">+${task.reward}$ + 🎰</div>
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">${task.description}</div>
+                        ${isReferTask ? `
+                        <button class="pay-btn" style="width: 100%;" onclick="openShareModal()">
+                            👉 Пригласить друга
+                        </button>
+                        ` : `
+                        <button class="pay-btn" style="width: 100%; ${todayCompleted ? 'background: #444;' : ''}"
+                            ${todayCompleted ? 'disabled' : ''} onclick="claimTask('${task.id}')">
+                            ${todayCompleted ? '✓ Выполнено' : 'Забрать награду'}
+                        </button>
+                        `}
+                    </div>
+                    `;
+                }
+            }).join('');
+        }
+
+        function saveState() {
+            localStorage.setItem('dailyStreak', dailyStreak);
+            localStorage.setItem('wheelSpins', wheelSpins);
+            localStorage.setItem('completedTasks', JSON.stringify(completedTasks));
+        }
+
+        function claimTask(taskId) {
+            const task = TASKS.find(t => t.id === taskId);
+            if (!task) return;
+
+            const today = new Date().toDateString();
+            if (completedTasks.some(t => t.id === taskId && t.date === today)) return;
+
+            if (task.id === 'login') {
+                // Login streak: day 1 = 0.01, day 2 = 0.02, ... day 30 = 0.30
+                dailyStreak = Math.min(dailyStreak + 1, 30);
+                const reward = dailyStreak * 0.01;
+                user.balance += reward;
+                user.totalEarned += reward;
+                completedTasks.push({ id: taskId, date: today, day: dailyStreak });
+                saveState();
+            } else if (task.id === 'refer') {
+                // Referral: 0.1$ + 1 wheel spin
+                user.balance += 0.1;
+                user.totalEarned += 0.1;
+                wheelSpins += 1;
+                completedTasks.push({ id: taskId, date: today });
+                saveState();
+            }
+
+            renderTasks();
+            updateProfile();
+            updateWheelBtn();
+            closeTasksModal();
+        }
+
+        function updateTaskProgress(taskId, amount) {
+            // No progress tracking needed anymore
+        }
+
+        function showWheel() {
+            toggleSidebar();
+            setTimeout(() => {
+                updateWheelUI();
+                updateWheelBtn();
+                document.getElementById('wheelModal').classList.add('open');
+            }, 300);
+        }
+
+        function updateWheelBtn() {
+            const btn = document.getElementById('wheelBtn');
+            if (btn) {
+                btn.textContent = `🎰 Колесо удачи (${wheelSpins} спинов)`;
+            }
+        }
+
+        function closeWheelModal() {
+            document.getElementById('wheelModal').classList.remove('open');
+        }
+
+        function updateWheelUI() {
+            const cooldown = getWheelCooldown();
+            const timerEl = document.getElementById('wheelTimer');
+            const spinBtn = document.getElementById('spinBtn');
+            const resultEl = document.getElementById('wheelResult');
+
+            if (activeBoost) {
+                const remaining = Math.max(0, activeBoost.endTime - Date.now());
+                if (remaining > 0) {
+                    const mins = Math.floor(remaining / 60000);
+                    resultEl.innerHTML = `🎁 Активен <span style="color: var(--accent);">x${activeBoost.value}</span> — осталось ${mins} мин`;
+                    spinBtn.disabled = true;
+                    spinBtn.textContent = 'Бустер активен';
+                    timerEl.textContent = '';
+                    return;
+                } else {
+                    activeBoost = null;
+                }
+            }
+
+            if (wheelSpins > 0) {
+                timerEl.textContent = `У вас ${wheelSpins} спин(ов)`;
+                spinBtn.disabled = false;
+                spinBtn.textContent = `Крутить! (${wheelSpins})`;
+                resultEl.textContent = '';
+            } else {
+                timerEl.textContent = 'Выполните задания для получения спинов';
+                spinBtn.disabled = true;
+                spinBtn.textContent = 'Нет спинов';
+                resultEl.textContent = '';
+            }
+        }
+
+        function spinWheel() {
+            if (wheelSpins <= 0 || activeBoost) return;
+
+            wheelSpins--;
+
+            const wheel = document.getElementById('wheel');
+            const randomDeg = 1440 + Math.random() * 720; // 4-6 полных оборотов
+            wheel.style.transform = `rotate(${randomDeg}deg)`;
+
+            // Determine prize
+            let roll = Math.random() * 100;
+            let cumulative = 0;
+            let prize = WHEEL_PRIZES[WHEEL_PRIZES.length - 1];
+
+            for (const p of WHEEL_PRIZES) {
+                cumulative += p.chance;
+                if (roll <= cumulative) {
+                    prize = p;
+                    break;
+                }
+            }
+
+            setTimeout(() => {
+                const resultEl = document.getElementById('wheelResult');
+                if (prize.type === 'balance') {
+                    user.balance += prize.value;
+                    user.totalEarned += prize.value;
+                    resultEl.innerHTML = `🎉 <span style="color: var(--success);">+${prize.value}$</span> добавлено на баланс!`;
+                } else if (prize.type === 'multiplier') {
+                    activeBoost = { type: 'multiplier', value: prize.value, endTime: Date.now() + prize.duration * 1000 };
+                    const mins = Math.floor(prize.duration / 60);
+                    resultEl.innerHTML = `🎁 <span style="color: var(--accent);">x${prize.value}</span> доход на ${mins} мин!`;
+                } else {
+                    resultEl.innerHTML = `😢 Промах! Попробуйте завтра.`;
+                }
+
+                lastWheelSpin = Date.now();
+                saveState();
+                updateWheelUI();
+                updateWheelBtn();
+                updateProfile();
+            }, 3000);
+        }
+
+        function showUpgradeModal() {
+            toggleSidebar();
+            setTimeout(() => {
+                renderUpgradeMiners();
+                document.getElementById('upgradeModal').classList.add('open');
+            }, 300);
+        }
+
+        function closeUpgradeModal() {
+            document.getElementById('upgradeModal').classList.remove('open');
+        }
+
+        function renderUpgradeMiners() {
+            const container = document.getElementById('upgradeMinersList');
+
+            if (user.miners.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px 0;">Сначала купите майнеры в магазине</div>';
+                return;
+            }
+
+            container.innerHTML = user.miners.map(m => {
+                const miner = MINERS.find(min => min.id === m.id);
+                const upgradeLevel = m.upgradeLevel || 0;
+                const upgradeCost = Math.round(miner.price * 0.5 * (upgradeLevel + 1));
+                const currentIncome = formatIncome(miner.income * (1 + upgradeLevel * 0.1));
+                const nextIncome = formatIncome(miner.income * (1 + (upgradeLevel + 1) * 0.1));
+
+                return `
+                    <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 32px;">${miner.icon}</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">${miner.name} ⭐${upgradeLevel}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Уровень: ${upgradeLevel} → ${upgradeLevel + 1}</div>
+                            <div style="font-size: 12px; color: var(--success);">Доход: ${currentIncome}$/ч → ${nextIncome}$/ч</div>
+                        </div>
+                        <button class="pay-btn" style="padding: 10px 16px;"
+                            ${user.balance < upgradeCost ? 'disabled' : ''}
+                            onclick="upgradeMiner(${m.id}, ${upgradeCost})">
+                            💎 ${upgradeCost}$
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function upgradeMiner(minerId, cost) {
+            if (user.balance < cost) return;
+
+            user.balance -= cost;
+            const miner = user.miners.find(m => m.id === minerId);
+            if (!miner) return;
+
+            miner.upgradeLevel = (miner.upgradeLevel || 0) + 1;
+
+            renderUpgradeMiners();
+            updateProfile();
+            renderMiners();
+        }
+
+        function formatIncome(value) {
+            const fixed = value.toFixed(3);
+            return parseFloat(fixed).toString();
+        }
+
+        function getMinerIncome(miner) {
+            const base = MINERS.find(m => m.id === miner.id)?.income || 0;
+            const level = miner.upgradeLevel || 0;
+            let income = base * (1 + level * 0.1);
+            if (activeBoost && activeBoost.type === 'multiplier') {
+                income *= activeBoost.value;
+            }
+            return income;
+        }
+
+        // ===== INIT =====
+        const tg = window.Telegram?.WebApp;
+
+        function init() {
+            if (tg) {
+                tg.ready();
+                tg.expand();
+                tg.enableClosingConfirmation();
+
+                // Get user data from Telegram
+                const userData = tg.initDataUnsafe?.user;
+                if (userData) {
+                    user.id = userData.id;
+                    user.name = userData.first_name || 'Пользователь';
+                }
+
+                // Update referral link
+                document.getElementById('referralLink').value =
+                    `https://t.me/MrDimkaBot/cloudminer?start=ref_${user.id}`;
+            }
+
+            // Load from localStorage
+            const savedStreak = localStorage.getItem('dailyStreak');
+            if (savedStreak) dailyStreak = parseInt(savedStreak);
+
+            const savedSpins = localStorage.getItem('wheelSpins');
+            if (savedSpins) wheelSpins = parseInt(savedSpins);
+
+            const savedTasks = localStorage.getItem('completedTasks');
+            if (savedTasks) completedTasks = JSON.parse(savedTasks);
+
+            // First login bonus: 1 wheel spin
+            if (!localStorage.getItem('firstLoginDone')) {
+                wheelSpins += 1;
+                localStorage.setItem('firstLoginDone', 'true');
+            }
+
+            updateProfile();
+            renderMiners();
+            startIncomeTimer();
+            loadMockRating();
+            renderTasks();
+        }
+
+        // ===== NAVIGATION =====
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+            document.getElementById(sectionId + 'Section').classList.add('active');
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+
+            if (sectionId === 'myMiners') {
+                renderMyMiners();
+            } else if (sectionId === 'rating') {
+                loadMockRating();
+            } else if (sectionId === 'tasks') {
+                renderTasks();
+                document.getElementById('streakDays').textContent = dailyStreak;
+                document.getElementById('wheelSpinsCount').textContent = wheelSpins;
+            }
+        }
+
+        // ===== SIDEBAR =====
+        function toggleSidebar() {
+            const overlay = document.getElementById('sidebarOverlay');
+            const sidebar = document.getElementById('sidebar');
+            overlay.classList.toggle('open');
+            sidebar.classList.toggle('open');
+        }
+
+        // ===== RENDER =====
+        function renderMiners() {
+            const container = document.getElementById('minersList');
+            container.innerHTML = MINERS.map(m => {
+                // Show upgrade bonus if user owns this miner
+                const owned = user.miners.find(om => om.id === m.id);
+                const level = owned?.upgradeLevel || 0;
+                const displayIncome = level > 0 ? formatIncome(m.income * (1 + level * 0.1)) : formatIncome(m.income);
+
+                return `
+                <div class="miner-card slide-up" onclick="openBuyModal(${m.id})">
+                    <div class="miner-icon">${m.icon}</div>
+                    <div class="miner-info">
+                        <div class="miner-name">${m.name}${level > 0 ? ` <span style="color: var(--warning);">⭐${level}</span>` : ''}</div>
+                        <div class="miner-stats">
+                            <span class="miner-income">+${displayIncome}$/час</span>
+                            <span class="miner-price">• ${m.price}$</span>
+                        </div>
+                    </div>
+                    <button class="buy-btn ${user.balance < m.price ? 'disabled' : ''}"
+                            ${user.balance < m.price ? 'disabled' : ''}>
+                        Купить
+                    </button>
+                </div>
+            `}).join('');
+        }
+
+        function renderMyMiners() {
+            const container = document.getElementById('myMinersList');
+
+            if (user.miners.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">⛏️</div>
+                        <div class="empty-title">У вас пока нет майнеров</div>
+                        <div class="empty-text">Перейдите в магазин, чтобы купить первый майнер</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const incomePerHour = user.miners.reduce((sum, m) => {
+                return sum + getMinerIncome(m) * m.count;
+            }, 0);
+
+            document.getElementById('myIncomePerHour').textContent = formatIncome(incomePerHour);
+            document.getElementById('myBalance').textContent = user.balance.toFixed(2);
+
+            container.innerHTML = user.miners.map(m => {
+                const miner = MINERS.find(min => min.id === m.id);
+                const level = m.upgradeLevel || 0;
+                return `
+                    <div class="miner-owned" onclick="openMyMinerUpgrade(${m.id})" style="cursor: pointer;">
+                        <div class="miner-icon">${miner?.icon || '⛏️'}</div>
+                        <div class="miner-info">
+                            <div class="miner-name">${miner?.name || 'Unknown'} ⭐${level}</div>
+                            <div class="miner-stats">
+                                <span class="miner-income">+${formatIncome(getMinerIncome(m) * m.count)}$/час</span>
+                            </div>
+                        </div>
+                        <div class="miner-count">${m.count}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openMyMinerUpgrade(minerId) {
+            const miner = user.miners.find(m => m.id === minerId);
+            if (!miner) return;
+            const minerInfo = MINERS.find(m => m.id === minerId);
+            const level = miner.upgradeLevel || 0;
+            const upgradeCost = Math.round(minerInfo.price * 0.5 * (level + 1));
+            const currentIncome = formatIncome(minerInfo.income * (1 + level * 0.1));
+            const nextIncome = formatIncome(minerInfo.income * (1 + (level + 1) * 0.1));
+
+            document.getElementById('singleMinerIcon').textContent = minerInfo.icon;
+            document.getElementById('singleMinerName').textContent = minerInfo.name + ' ⭐' + level;
+            document.getElementById('singleMinerLevel').textContent = level;
+            document.getElementById('singleMinerIncome').textContent = currentIncome + '$/ч';
+            document.getElementById('singleMinerNextIncome').textContent = nextIncome + '$/ч';
+            document.getElementById('singleUpgradeCost').textContent = upgradeCost + '$';
+            document.getElementById('singleUpgradeBtn').onclick = () => upgradeMiner(minerId, upgradeCost);
+            document.getElementById('singleUpgradeBtn').disabled = user.balance < upgradeCost;
+
+            document.getElementById('singleUpgradeModal').classList.add('open');
+        }
+
+        function closeSingleUpgradeModal() {
+            document.getElementById('singleUpgradeModal').classList.remove('open');
+        }
+
+        function loadMockRating() {
+            const mockUsers = [
+                { name: 'Alex', income: 450.50, reward: 1000 },
+                { name: 'Maria', income: 320.00, reward: 500 },
+                { name: 'John', income: 280.75, reward: 250 },
+                { name: 'Kate', income: 195.20, reward: 200 },
+                { name: 'Max', income: 180.00, reward: 150 },
+                { name: 'Anna', income: 155.30, reward: 125 },
+                { name: 'Igor', income: 142.80, reward: 100 },
+                { name: 'Olga', income: 120.00, reward: 90 },
+                { name: 'Sergey', income: 95.50, reward: 80 },
+                { name: 'Nata', income: 88.20, reward: 70 },
+                { name: 'User', income: user.miners.reduce((sum, m) => {
+                    const miner = MINERS.find(min => min.id === m.id);
+                    return sum + (miner ? miner.income * m.count : 0);
+                }, 0), reward: user.rank && REWARDS[user.rank] ? REWARDS[user.rank] : 0 },
+            ].sort((a, b) => b.income - a.income);
+
+            const myPosition = mockUsers.findIndex(u => u.name === 'User') + 1;
+            user.rank = myPosition;
+            document.getElementById('myRank').textContent = '#' + myPosition;
+            document.getElementById('weeklyReward').textContent = user.rank <= 20 ? REWARDS[user.rank] + ' $' : '—';
+
+            const container = document.getElementById('ratingList');
+            container.innerHTML = mockUsers.slice(0, 10).map((u, i) => `
+                <div class="rating-item ${i < 3 ? 'top-3' : ''}">
+                    <div class="rating-position">${i + 1}</div>
+                    <div class="rating-info">
+                        <div class="rating-name">${u.name}</div>
+                        <div class="rating-income">${u.income.toFixed(2)}$/час</div>
+                    </div>
+                    ${i < 20 ? `<div class="rating-reward">+${u.reward}$</div>` : ''}
+                </div>
+            `).join('');
+
+            updateProfile();
+        }
+
+        // ===== PROFILE =====
+        function updateProfile() {
+            document.getElementById('profileName').textContent = user.name;
+            document.getElementById('profileRank').textContent = 'Место в рейтинге: #' + (user.rank || '—');
+            document.getElementById('profileTotalEarned').textContent = user.totalEarned.toFixed(2) + ' $';
+
+            const incomePerHour = user.miners.reduce((sum, m) => {
+                const miner = MINERS.find(min => min.id === m.id);
+                return sum + (miner ? miner.income * m.count : 0);
+            }, 0);
+
+            document.getElementById('profileIncome').textContent = formatIncome(incomePerHour) + '/h';
+            document.getElementById('headerBalance').textContent = user.balance.toFixed(2);
+        }
+
+        // ===== BUY MODAL =====
+        function openBuyModal(minerId) {
+            selectedMiner = MINERS.find(m => m.id === minerId);
+            quantity = 1;
+
+            document.getElementById('modalMinerIcon').textContent = selectedMiner.icon;
+            document.getElementById('modalMinerName').textContent = selectedMiner.name;
+            document.getElementById('modalMinerIncome').textContent = '+' + formatIncome(selectedMiner.income) + '$/час';
+            updateModalTotal();
+
+            document.getElementById('buyModal').classList.add('open');
+        }
+
+        function closeBuyModal() {
+            document.getElementById('buyModal').classList.remove('open');
+            selectedMiner = null;
+        }
+
+        function changeQuantity(delta) {
+            quantity = Math.max(1, Math.min(10, quantity + delta));
+            document.getElementById('quantityValue').textContent = quantity;
+            updateModalTotal();
+        }
+
+        function updateModalTotal() {
+            if (!selectedMiner) return;
+            const total = selectedMiner.price * quantity;
+            document.getElementById('modalTotal').textContent = total.toFixed(2) + ' $';
+        }
+
+        // ===== PAYMENT =====
+        function processPayment() {
+            if (!selectedMiner) return;
+
+            const total = selectedMiner.price * quantity;
+            if (user.balance < total) {
+                alert('Недостаточно средств!');
+                return;
+            }
+
+            // Demo payment - just deduct balance and add miner
+            user.balance -= total;
+
+            // Add or update miner
+            const existing = user.miners.find(m => m.id === selectedMiner.id);
+            if (existing) {
+                existing.count += quantity;
+            } else {
+                user.miners.push({ id: selectedMiner.id, count: quantity, upgradeLevel: 0 });
+            }
+
+            closeBuyModal();
+            document.getElementById('successModal').classList.add('open');
+
+            renderMiners();
+            updateProfile();
+        }
+
+        function closeSuccessModal() {
+            document.getElementById('successModal').classList.remove('open');
+        }
+
+        // ===== INCOME TIMER =====
+        function startIncomeTimer() {
+            incomeTimer = setInterval(() => {
+                if (user.miners.length === 0) return;
+
+                const incomePerSecond = user.miners.reduce((sum, m) => {
+                    return sum + getMinerIncome(m) / 3600 * m.count;
+                }, 0);
+
+                const income = incomePerSecond * 10; // 10 seconds
+                user.balance += income;
+                user.totalEarned += income;
+                saveState();
+
+                document.getElementById('headerBalance').textContent = user.balance.toFixed(2);
+                document.getElementById('totalEarned').textContent = user.totalEarned.toFixed(2);
+
+                const incomePerHour = user.miners.reduce((sum, m) => {
+                    return sum + getMinerIncome(m) * m.count;
+                }, 0);
+
+                document.getElementById('incomePerHour').textContent = formatIncome(incomePerHour);
+            }, 10000);
+        }
+
+        // ===== DAILY BONUS =====
+        function claimDailyBonus() {
+            const now = new Date();
+            const last = lastBonusClaim ? new Date(lastBonusClaim) : null;
+
+            if (last && (now - last) < 24 * 60 * 60 * 1000) {
+                const remaining = 24 * 60 * 60 * 1000 - (now - last);
+                const hours = Math.floor(remaining / (60 * 60 * 1000));
+                const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+                alert(`Бонус уже получен! Повторно через ${hours}ч ${minutes}мин`);
+                return;
+            }
+
+            user.balance += 10;
+            user.totalEarned += 10;
+            lastBonusClaim = now.toISOString();
+
+            document.getElementById('claimBonusBtn').disabled = true;
+            document.getElementById('claimBonusBtn').textContent = 'Получено';
+
+            updateProfile();
+            renderMiners();
+        }
+
+        // ===== REFERRAL =====
+        function copyReferralLink() {
+            const input = document.getElementById('referralLink');
+            input.select();
+            document.execCommand('copy');
+            alert('Ссылка скопирована!');
+        }
+
+        // ===== FAQ =====
+        function showFAQ() {
+            toggleSidebar();
+            setTimeout(() => {
+                document.getElementById('faqModal').classList.add('open');
+            }, 300);
+        }
+
+        function closeFAQ() {
+            document.getElementById('faqModal').classList.remove('open');
+        }
+
+        // ===== SHARE MODAL =====
+        function openShareModal() {
+            const referralLink = document.getElementById('referralLink').value;
+            document.getElementById('shareReferralLink').value = referralLink;
+            document.getElementById('shareModal').classList.add('open');
+        }
+
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('open');
+        }
+
+        function copyShareLink() {
+            const input = document.getElementById('shareReferralLink');
+            input.select();
+            document.execCommand('copy');
+            alert('Ссылка скопирована!');
+        }
+
+        function shareViaTelegram() {
+            const tg = window.Telegram?.WebApp;
+            const link = document.getElementById('shareReferralLink').value;
+            const text = '⚡ Присоединяйся к CloudMiner! Зарабатывай криптовалюту играя: ' + link;
+            if (tg && tg.openTelegramLink) {
+                tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(text));
+            } else {
+                window.open('https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(text), '_blank');
+            }
+        }
+
+        // ===== TOP UP (DEMO) =====
+        function topUpBalance() {
+            toggleSidebar();
+            user.balance += 100;
+            user.totalEarned += 100;
+            updateProfile();
+            renderMiners();
+            alert('+100 $ добавлено (демо-режим)');
+        }
+
+        // ===== INIT =====
+        init();
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('open');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

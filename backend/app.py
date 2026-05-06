@@ -1,6 +1,10 @@
 import os
 import requests
+import time
+import secrets
+from dotenv import load_dotenv
 from flask import Flask, request, jsonify
+load_dotenv()
 from models import (
     init_db, create_user, get_user, update_balance, buy_miner,
     get_user_miners_full, get_rating, get_referral_stats, MINERS,
@@ -13,8 +17,10 @@ app.secret_key = os.getenv('FLASK_SECRET', 'dev-key-change-me')
 
 init_db()
 
-# Deposit wallet address - in production, use secure wallet
-DEPOSIT_WALLET = os.getenv('DEPOSIT_WALLET', 'TXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+# NOWPayments credentials
+NOWPAYMENTS_API_KEY = os.getenv('NOWPAYMENTS_API_KEY', '')
+DEPOSIT_WALLET = os.getenv('DEPOSIT_WALLET', '')
+IPN_SECRET = os.getenv('NOWPAYMENTS_IPN_SECRET', '')
 
 @app.route('/api/health')
 def health():
@@ -163,10 +169,10 @@ def referrals(user_id):
 
 @app.route('/api/deposit/create', methods=['POST'])
 def deposit_create():
-    """Create a deposit request - returns wallet address for USDT TRC20"""
+    """Create a deposit invoice via NOWPayments"""
     data = request.json
     user_id = data.get('user_id')
-    amount = data.get('amount', 10)
+    amount = float(data.get('amount', 10))
 
     if not user_id:
         return jsonify({'error': 'user_id required'}), 400
@@ -174,17 +180,77 @@ def deposit_create():
     if amount < 1:
         return jsonify({'error': 'Minimum deposit is 1$'}), 400
 
-    deposit = create_deposit(user_id, amount)
+    if not NOWPAYMENTS_API_KEY or not DEPOSIT_WALLET:
+        # Fallback to demo mode
+        deposit = create_deposit(user_id, amount)
+        return jsonify({
+            'success': True,
+            'deposit_id': deposit['deposit_id'],
+            'address': DEPOSIT_WALLET or 'DEMO_WALLET',
+            'amount': amount,
+            'network': 'TRC20',
+            'memo': deposit['deposit_id'],
+            'message': f'Send exactly {amount}$ USDT (TRC20) to address above.'
+        })
 
-    return jsonify({
-        'success': True,
-        'deposit_id': deposit['deposit_id'],
-        'address': DEPOSIT_WALLET,  # In production, generate real address
-        'amount': amount,
-        'network': 'TRC20',
-        'memo': deposit['deposit_id'],
-        'message': f'Send exactly {amount}$ USDT (TRC20) to address above. Include deposit_id as memo.'
-    })
+    try:
+        # Create invoice via NOWPayments
+        invoice_data = {
+            'price_amount': amount,
+            'price_currency': 'USD',
+            'pay_currency': 'USDT',
+            'ipn_callback_url': f'http://31.129.99.202/api/deposit/callback',
+            'order_id': f'{user_id}_{secrets.token_hex(8)}',
+            'success_url': 'https://cloudminer-app.vercel.app/?deposit=success',
+            'cancel_url': 'https://cloudminer-app.vercel.app/?deposit=cancel'
+        }
+
+        resp = requests.post(
+            'https://api.nowpayments.io/v1/invoice',
+            json=invoice_data,
+            headers={
+                'x-api-key': NOWPAYMENTS_API_KEY,
+                'Content-Type': 'application/json'
+            },
+            timeout=10
+        )
+
+        if resp.status_code == 200:
+            result = resp.json()
+            deposit = create_deposit(user_id, amount)
+            return jsonify({
+                'success': True,
+                'deposit_id': deposit['deposit_id'],
+                'invoice_url': result.get('invoice_url'),
+                'address': DEPOSIT_WALLET,
+                'amount': amount,
+                'network': 'TRC20',
+                'memo': deposit['deposit_id'],
+                'message': f'Click the link to pay {amount}$ USDT'
+            })
+        else:
+            # Fallback to manual address
+            deposit = create_deposit(user_id, amount)
+            return jsonify({
+                'success': True,
+                'deposit_id': deposit['deposit_id'],
+                'address': DEPOSIT_WALLET,
+                'amount': amount,
+                'network': 'TRC20',
+                'memo': deposit['deposit_id'],
+                'message': f'Send exactly {amount}$ USDT (TRC20) to address above.'
+            })
+    except Exception as e:
+        deposit = create_deposit(user_id, amount)
+        return jsonify({
+            'success': True,
+            'deposit_id': deposit['deposit_id'],
+            'address': DEPOSIT_WALLET,
+            'amount': amount,
+            'network': 'TRC20',
+            'memo': deposit['deposit_id'],
+            'message': f'Send exactly {amount}$ USDT (TRC20) to address above.'
+        })
 
 @app.route('/api/deposit/confirm', methods=['POST'])
 def deposit_confirm():
@@ -206,6 +272,59 @@ def deposit_confirm():
 def deposits(user_id):
     """Get user's deposit history"""
     return jsonify(get_deposits(user_id))
+
+@app.route('/api/deposit/callback', methods=['POST'])
+def deposit_callback():
+    """NOWPayments IPN callback - called when payment is confirmed"""
+    try:
+        data = request.json
+        print(f"NOWPayments callback: {data}")
+
+        payment_status = data.get('payment_status')
+        pay_amount = float(data.get('pay_amount', 0))
+        pay_currency = data.get('pay_currency', '')
+        order_id = data.get('order_id', '')
+
+        # Parse user_id from order_id (format: userid_tokenhex)
+        parts = order_id.split('_')
+        if len(parts) >= 2:
+            try:
+                user_id = int(parts[0])
+            except:
+                return jsonify({'status': 'error'}), 400
+        else:
+            return jsonify({'status': 'error'}), 400
+
+        if payment_status == 'finished' or payment_status == 'confirmed':
+            # Credit user balance
+            user = get_user(user_id)
+            if user:
+                update_balance(user_id, pay_amount, f'Deposit: {pay_amount} {pay_currency}')
+
+                # Credit referrer if exists
+                if user.get('referred_by'):
+                    credit_referral_earnings(user['referred_by'], user_id, pay_amount)
+
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        print(f"Callback error: {e}")
+        return jsonify({'status': 'error'}), 500
+
+def credit_referral_earnings(referrer_id, referral_id, deposit_amount):
+    """Credit referrer with 3% of deposit"""
+    earnings = round(deposit_amount * 0.03, 2)
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('INSERT INTO referrals (referrer_id, referral_id, earnings) VALUES (?, ?, ?)',
+              (referrer_id, referral_id, earnings))
+    c.execute('UPDATE users SET balance = balance + ? WHERE user_id = ?', (earnings, referrer_id))
+    conn.commit()
+    conn.close()
+    return earnings
+
+def get_db():
+    from models import get_db
+    return get_db()
 
 # ============ ADMIN ============
 

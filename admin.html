@@ -3,193 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CloudMiner Admin Panel</title>
+    <title>CloudMiner Admin</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --bg: #0f0f1a;
             --bg-card: #1a1a2e;
-            --bg-secondary: #252538;
             --accent: #00d4aa;
-            --accent-hover: #00e6b8;
-            --warning: #ffb800;
             --danger: #ff4757;
             --text: #ffffff;
             --text-secondary: #888;
-            --border: #333;
         }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-        .header { background: var(--bg-card); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
-        .header h1 { font-size: 20px; color: var(--accent); }
-        .header a { color: var(--accent); text-decoration: none; font-size: 14px; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-        .status-bar { display: flex; gap: 16px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        .status-item { background: var(--bg-card); padding: 8px 16px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .online { background: var(--accent); }
-        .offline { background: var(--danger); }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: var(--bg-card); padding: 40px; border-radius: 16px; width: 100%; max-width: 360px; text-align: center; }
+        .login-box h1 { color: var(--accent); font-size: 24px; margin-bottom: 8px; }
+        .login-box p { color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
+        .login-box input { width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #333; background: var(--bg); color: var(--text); font-size: 16px; margin-bottom: 16px; text-align: center; }
+        .login-box button { width: 100%; padding: 14px; border-radius: 8px; border: none; background: var(--accent); color: #000; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .login-box button:hover { opacity: 0.9; }
+        .error { color: var(--danger); font-size: 13px; margin-top: 12px; display: none; }
+        .hidden { display: none !important; }
+        .admin-content { display: none; width: 100%; }
+        .admin-header { background: var(--bg-card); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        .admin-header h1 { font-size: 20px; color: var(--accent); }
+        .logout-btn { background: var(--danger); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; padding: 20px; }
         .stat-card { background: var(--bg-card); border-radius: 12px; padding: 20px; }
         .stat-value { font-size: 32px; font-weight: 700; color: var(--accent); }
         .stat-label { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
-        .section { background: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .section-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--warning); }
-        .users-table { width: 100%; border-collapse: collapse; }
-        .users-table th { text-align: left; padding: 12px; color: var(--text-secondary); font-size: 12px; border-bottom: 1px solid var(--border); font-weight: 500; }
-        .users-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
-        .users-table tr:hover { background: var(--bg-secondary); }
-        .users-table .balance { color: var(--accent); font-weight: 600; }
-        .users-table .earned { color: var(--warning); }
-        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; }
-        .btn-primary { background: var(--accent); color: #000; }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-danger { background: var(--danger); color: #fff; }
-        .btn-secondary { background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border); }
-        .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-        .log { background: var(--bg-secondary); padding: 12px; border-radius: 8px; font-size: 12px; font-family: monospace; max-height: 200px; overflow-y: auto; color: var(--text-secondary); }
-        .log-entry { margin-bottom: 4px; }
-        .log-entry.success { color: var(--accent); }
-        .log-entry.error { color: var(--danger); }
-        .log-entry.info { color: var(--warning); }
-        .refresh-info { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
-        @media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+        .section { background: var(--bg-card); border-radius: 12px; padding: 20px; margin: 0 20px 20px 20px; }
+        .section-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--accent); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #333; }
+        th { color: var(--text-secondary); font-size: 12px; }
+        td { font-size: 14px; }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; }
+        .btn-refresh { background: var(--accent); color: #000; }
+        .log { background: #151520; padding: 12px; border-radius: 8px; font-size: 12px; max-height: 150px; overflow-y: auto; color: var(--text-secondary); }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>⚡ CloudMiner Admin</h1>
-        <a href="/" target="_blank">Открыть Mini App →</a>
+    <!-- Login Screen -->
+    <div class="login-box" id="loginBox">
+        <h1>⚡ CloudMiner</h1>
+        <p>Админ-панель</p>
+        <input type="password" id="passwordInput" placeholder="Введите пароль" onkeypress="if(event.key==='Enter')checkPassword()">
+        <button onclick="checkPassword()">Войти</button>
+        <div class="error" id="loginError">Неверный пароль</div>
     </div>
 
-    <div class="container">
-        <div class="status-bar">
-            <div class="status-item">
-                <div class="status-dot online" id="apiStatus"></div>
-                <span>API: <span id="apiStatusText">проверка...</span></span>
-            </div>
-            <div class="status-item">
-                <div class="status-dot online" id="botStatus"></div>
-                <span>Бот: <span id="botStatusText">проверка...</span></span>
-            </div>
-            <div class="status-item" style="margin-left: auto;">
-                <span id="lastUpdate" class="refresh-info">Обновлено: —</span>
-            </div>
+    <!-- Admin Panel (hidden until login) -->
+    <div class="admin-content" id="adminPanel">
+        <div class="admin-header">
+            <h1>⚡ CloudMiner Admin</h1>
+            <button class="logout-btn" onclick="logout()">Выйти</button>
         </div>
-
         <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value" id="totalUsers">—</div>
-                <div class="stat-label">Всего пользователей</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="totalBalance">—</div>
-                <div class="stat-label">Общий баланс $</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="totalEarned">—</div>
-                <div class="stat-label">Всего заработано $</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="totalDeposits">—</div>
-                <div class="stat-label">Депозиты $</div>
-            </div>
+            <div class="stat-card"><div class="stat-value" id="totalUsers">—</div><div class="stat-label">Пользователей</div></div>
+            <div class="stat-card"><div class="stat-value" id="totalBalance">—</div><div class="stat-label">Баланс $</div></div>
+            <div class="stat-card"><div class="stat-value" id="totalEarned">—</div><div class="stat-label">Заработано $</div></div>
+            <div class="stat-card"><div class="stat-value" id="totalDeposits">—</div><div class="stat-label">Депозиты $</div></div>
         </div>
-
         <div class="section">
             <div class="section-title">👥 Пользователи</div>
-            <table class="users-table">
-                <thead><tr><th>#</th><th>ID</th><th>Имя</th><th>Баланс</th><th>Заработано</th><th>Рефералов</th><th>Дата</th></tr></thead>
-                <tbody id="usersBody"><tr><td colspan="7" style="text-align:center">Загрузка...</td></tr></tbody>
-            </table>
+            <table><thead><tr><th>#</th><th>ID</th><th>Имя</th><th>Баланс</th><th>Заработано</th></tr></thead><tbody id="usersBody"><tr><td colspan="5">Загрузка...</td></tr></tbody></table>
         </div>
-
         <div class="section">
-            <div class="section-title">🔧 Управление</div>
-            <div class="actions">
-                <button class="btn btn-secondary" onclick="loadData()">🔃 Обновить</button>
-                <button class="btn btn-danger" onclick="restartBot()">🔄 Рестарт бота</button>
-                <button class="btn btn-danger" onclick="restartAPI()">🔄 Рестарт API</button>
-            </div>
-            <div class="log" id="actionLog">
-                <div class="log-entry info">Готов к работе...</div>
-            </div>
+            <div class="section-title">🔧 Лог</div>
+            <button class="btn btn-refresh" onclick="loadData()">🔃 Обновить</button>
+            <div class="log" id="logBox" style="margin-top: 12px;">Готов...</div>
         </div>
     </div>
 
     <script>
         const API = 'http://31.129.99.202:3000';
-        const log = document.getElementById('actionLog');
+        // Password hash (SHA-256 of "cloudminer2024")
+        const PASS_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
-        function addLog(msg, type = 'info') {
-            const d = new Date().toLocaleTimeString();
-            log.innerHTML = `<div class="log-entry ${type}">[${d}] ${msg}</div>` + log.innerHTML;
-            if (log.children.length > 50) log.removeChild(log.lastChild);
+        async function sha256(str) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function checkPassword() {
+            const input = document.getElementById('passwordInput');
+            const error = document.getElementById('loginError');
+            const hash = await sha256(input.value);
+            if (hash === PASS_HASH) {
+                sessionStorage.setItem('admin_logged', '1');
+                document.getElementById('loginBox').classList.add('hidden');
+                document.getElementById('adminPanel').style.display = 'block';
+                loadData();
+            } else {
+                error.style.display = 'block';
+                input.value = '';
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('admin_logged');
+            location.reload();
+        }
+
+        function addLog(msg) {
+            const log = document.getElementById('logBox');
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML = `[${time}] ${msg}<br>` + log.innerHTML;
         }
 
         async function loadData() {
             try {
                 const [stats, users] = await Promise.all([
-                    fetch(API + '/api/admin/stats').then(r => r.ok ? r.json() : Promise.reject(r.status)),
-                    fetch(API + '/api/admin/users').then(r => r.ok ? r.json() : Promise.reject(r.status))
+                    fetch(API + '/api/admin/stats').then(r => r.json()),
+                    fetch(API + '/api/admin/users').then(r => r.json())
                 ]);
-
                 document.getElementById('totalUsers').textContent = stats.total_users || 0;
                 document.getElementById('totalBalance').textContent = (stats.total_balance || 0).toFixed(2);
                 document.getElementById('totalEarned').textContent = (stats.total_earned || 0).toFixed(2);
                 document.getElementById('totalDeposits').textContent = (stats.total_deposits || 0).toFixed(2);
-                document.getElementById('lastUpdate').textContent = `Обновлено: ${new Date().toLocaleTimeString()}`;
-
-                const tbody = document.getElementById('usersBody');
-                tbody.innerHTML = users.map((u, i) => `
-                    <tr>
-                        <td>${i + 1}</td>
-                        <td>${u.user_id}</td>
-                        <td>${u.first_name || u.username || '—'}</td>
-                        <td class="balance">${(u.balance || 0).toFixed(2)}$</td>
-                        <td class="earned">${(u.total_earned || 0).toFixed(2)}$</td>
-                        <td>${u.referrals_count || 0}</td>
-                        <td>${u.created_at ? u.created_at.split(' ')[0] : '—'}</td>
-                    </tr>
-                `).join('');
-
-                addLog('Данные загружены', 'success');
+                document.getElementById('usersBody').innerHTML = users.map((u, i) =>
+                    `<tr><td>${i+1}</td><td>${u.user_id}</td><td>${u.first_name || u.username || '—'}</td><td>${(u.balance||0).toFixed(2)}$</td><td>${(u.total_earned||0).toFixed(2)}$</td></tr>`
+                ).join('');
+                addLog('Данные загружены');
             } catch (e) {
-                addLog('Ошибка загрузки: ' + e, 'error');
+                addLog('Ошибка: ' + e);
             }
         }
 
-        function restartBot() {
-            addLog('Рестарт бота...', 'info');
-            // Placeholder - needs backend endpoint
-            fetch(API + '/api/admin/restart-bot', { method: 'POST' })
-                .then(r => { addLog('Бот рестартован', 'success'); loadData(); })
-                .catch(e => addLog('Ошибка: ' + e, 'error'));
+        // Check if already logged in
+        if (sessionStorage.getItem('admin_logged') === '1') {
+            document.getElementById('loginBox').classList.add('hidden');
+            document.getElementById('adminPanel').style.display = 'block';
+            loadData();
         }
-
-        function restartAPI() {
-            addLog('Рестарт API...', 'info');
-            fetch(API + '/api/admin/restart-api', { method: 'POST' })
-                .then(r => { addLog('API рестартована', 'success'); loadData(); })
-                .catch(e => addLog('Ошибка: ' + e, 'error'));
-        }
-
-        function checkStatus() {
-            fetch(API + '/api/health')
-                .then(r => {
-                    document.getElementById('apiStatus').className = 'status-dot online';
-                    document.getElementById('apiStatusText').textContent = 'онлайн';
-                })
-                .catch(() => {
-                    document.getElementById('apiStatus').className = 'status-dot offline';
-                    document.getElementById('apiStatusText').textContent = 'офлайн';
-                });
-        }
-
-        // Init
-        checkStatus();
-        loadData();
-        setInterval(loadData, 30000);
-        setInterval(checkStatus, 10000);
     </script>
 </body>
 </html>

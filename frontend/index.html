@@ -1133,6 +1133,10 @@
                     <span class="menu-link-icon">💰</span>
                     Пополнить баланс
                 </button>
+                <button class="menu-link" onclick="showWithdrawModal()">
+                    <span class="menu-link-icon">💸</span>
+                    Вывод средств
+                </button>
             </div>
         </div>
     </aside>
@@ -1191,9 +1195,13 @@
         <div class="modal" style="max-width: 400px; max-height: 80vh; overflow-y: auto;">
             <div class="modal-title">💰 Пополнение баланса</div>
             <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-                Выберите сумму для пополнения:
+                Введите сумму (мин. 2$):
             </div>
-            <div id="depositAmounts" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;"></div>
+            <div style="margin-bottom: 16px;">
+                <input type="number" id="customDepositAmount" min="2" step="1" placeholder="Введите сумму..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 16px; text-align: center;" oninput="validateDepositInput()" onkeypress="if(event.key==='Enter')submitDepositAmount()">
+                <div id="depositError" style="color: #ff4757; font-size: 12px; margin-top: 6px; display: none;">Минимальная сумма 2$</div>
+            </div>
+            <button class="pay-btn" style="width: 100%; margin-bottom: 12px;" onclick="submitDepositAmount()">Создать счёт</button>
             <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; display: none;" id="depositInstructions">
                 <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">💳 Ссылка для оплаты:</div>
                 <div style="margin-bottom: 12px;">
@@ -1215,6 +1223,39 @@
                 💳 Оплата через NOWPayments (USDT, BTC, ETH)
             </div>
             <button class="pay-btn" style="margin-top: 10px; background: var(--bg-card); color: var(--text-primary);" onclick="closeDepositModal()">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div class="modal-overlay" id="withdrawModal">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-title">💸 Вывод средств</div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                Минимум 10$. Комиссия 1$.
+            </div>
+            <div style="margin-bottom: 16px;">
+                <input type="number" id="withdrawAmount" min="10" step="1" placeholder="Сумма вывода..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 16px; text-align: center;" oninput="validateWithdrawInput()">
+                <div id="withdrawError" style="color: #ff4757; font-size: 12px; margin-top: 6px; display: none;"></div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <input type="text" id="withdrawAddress" placeholder="USDT (TRC20) адрес кошелька" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 14px;">
+            </div>
+            <div style="background: var(--bg-card); border-radius: 12px; padding: 12px; margin-bottom: 16px; font-size: 13px; color: var(--text-secondary);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span>Сумма:</span>
+                    <span id="withdrawSum">0$</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span>Комиссия:</span>
+                    <span>1$</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--success);">
+                    <span>К получению:</span>
+                    <span id="withdrawReceive">0$</span>
+                </div>
+            </div>
+            <button class="pay-btn" style="width: 100%; background: var(--success); color: #000;" onclick="submitWithdraw()">Вывести</button>
+            <button class="pay-btn" style="margin-top: 10px; background: var(--bg-card); color: var(--text-primary);" onclick="closeWithdrawModal()">Закрыть</button>
         </div>
     </div>
 
@@ -1285,7 +1326,11 @@
         <div class="modal" style="max-width: 360px; text-align: center;">
             <div class="modal-title">🎰 Колесо удачи</div>
             <div id="wheelContainer" style="margin: 20px 0; position: relative;">
-                <div id="wheel" style="width: 280px; height: 280px; border-radius: 50%; background: conic-gradient(#00d4aa 0deg 45deg, #ffb800 45deg 90deg, #ff4757 90deg 135deg, #00d4aa 135deg 180deg, #ffb800 180deg 225deg, #ff4757 225deg 270deg, #00d4aa 270deg 315deg, #ffb800 315deg 360deg); margin: 0 auto; position: relative; transition: transform 3s cubic-bezier(0.2, 0.8, 0.3, 1);">
+                <div id="wheel" style="width: 280px; height: 280px; border-radius: 50%; background: conic-gradient(#00d4aa 0deg 72deg, #ffb800 72deg 144deg, #ff4757 144deg 216deg, #00d4aa 216deg 288deg, #ffb800 288deg 360deg); margin: 0 auto; position: relative; transition: transform 3s cubic-bezier(0.2, 0.8, 0.3, 1);">
+                    <div style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #fff; font-weight: bold;">x1.5</div>
+                    <div style="position: absolute; top: 50px; right: 15px; font-size: 12px; color: #fff; font-weight: bold; transform: rotate(40deg);">x2</div>
+                    <div style="position: absolute; bottom: 50px; right: 20px; font-size: 12px; color: #fff; font-weight: bold; transform: rotate(100deg);">x3</div>
+                    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #fff; font-weight: bold;">Мимо</div>
                     <div style="position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; background: var(--bg-secondary); border-radius: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; font-size: 24px;">🎯</div>
                 </div>
                 <div id="wheelPointer" style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 30px;">▼</div>
@@ -1399,8 +1444,8 @@
         const WHEEL_PRIZES = [
             { label: 'x1.5', chance: 30, type: 'multiplier', value: 1.5, duration: 3600 },
             { label: 'x2', chance: 25, type: 'multiplier', value: 2, duration: 1800 },
-            { label: 'x3', chance: 15, type: 'multiplier', value: 3, duration: 600 },
-            { label: 'Мимо', chance: 30, type: 'none', value: 0 },
+            { label: 'x3', chance: 10, type: 'multiplier', value: 3, duration: 600 },
+            { label: 'Мимо', chance: 35, type: 'none', value: 0 },
         ];
 
         let activeBoost = null; // { type, value, endTime }
@@ -1437,7 +1482,7 @@
                             <div style="font-weight: 600;">${task.title}</div>
                             <div style="color: var(--warning); font-weight: 600;">День ${currentDay + 1}: +${reward.toFixed(2)}$</div>
                         </div>
-                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">День ${currentDay + 1}/30 • Струк: ${currentDay} дней</div>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">День ${currentDay + 1}/30 • Стрик: ${currentDay} дней</div>
                         <div style="background: var(--bg-secondary); height: 6px; border-radius: 3px; margin-bottom: 8px;">
                             <div style="background: var(--accent); height: 100%; border-radius: 3px; width: ${(currentDay / 30) * 100}%"></div>
                         </div>
@@ -1589,16 +1634,24 @@
 
             setTimeout(() => {
                 const resultEl = document.getElementById('wheelResult');
+                const wheelEl = document.getElementById('wheel');
+
+                // Add celebration animation
+                wheelEl.style.animation = 'wheelCelebrate 0.5s ease-out';
+
                 if (prize.type === 'balance') {
                     user.balance += prize.value;
                     user.totalEarned += prize.value;
                     resultEl.innerHTML = `🎉 <span style="color: var(--success);">+${prize.value}$</span> добавлено на баланс!`;
+                    resultEl.style.animation = 'prizePop 0.6s ease-out';
                 } else if (prize.type === 'multiplier') {
                     activeBoost = { type: 'multiplier', value: prize.value, endTime: Date.now() + prize.duration * 1000 };
                     const mins = Math.floor(prize.duration / 60);
                     resultEl.innerHTML = `🎁 <span style="color: var(--accent);">x${prize.value}</span> доход на ${mins} мин!`;
+                    resultEl.style.animation = 'prizePop 0.6s ease-out';
                 } else {
                     resultEl.innerHTML = `😢 Промах! Попробуйте завтра.`;
+                    resultEl.style.animation = 'prizeShake 0.5s ease-out';
                 }
 
                 lastWheelSpin = Date.now();
@@ -1606,6 +1659,9 @@
                 updateWheelUI();
                 updateWheelBtn();
                 updateProfile();
+
+                // Reset wheel animation
+                setTimeout(() => { wheelEl.style.animation = ''; }, 500);
             }, 3000);
         }
 
@@ -2075,19 +2131,46 @@
 
         // ===== DEPOSIT MODAL =====
         function showDepositModal() {
-            const amounts = [10, 25, 50, 100, 250, 500];
-            const container = document.getElementById('depositAmounts');
-            container.innerHTML = amounts.map(a => `
-                <button class="pay-btn" style="flex: 1; min-width: 80px; margin: 4px;" onclick="selectDepositAmount(${a})">${a}$</button>
-            `).join('');
+            document.getElementById('customDepositAmount').value = '';
+            document.getElementById('depositInstructions').style.display = 'none';
+            document.getElementById('depositError').style.display = 'none';
             document.getElementById('depositModal').classList.add('open');
         }
 
-        let selectedDepositAmount = 0;
+        function validateDepositInput() {
+            const input = document.getElementById('customDepositAmount');
+            const error = document.getElementById('depositError');
+            const value = parseFloat(input.value);
+            if (input.value && value < 2) {
+                error.style.display = 'block';
+                return false;
+            }
+            error.style.display = 'none';
+            return true;
+        }
 
-        function selectDepositAmount(amount) {
+        function submitDepositAmount() {
+            const input = document.getElementById('customDepositAmount');
+            const amount = parseFloat(input.value);
+            const error = document.getElementById('depositError');
+
+            if (!input.value) {
+                error.textContent = 'Введите сумму';
+                error.style.display = 'block';
+                return;
+            }
+            if (amount < 2) {
+                error.textContent = 'Минимальная сумма 2$';
+                error.style.display = 'block';
+                return;
+            }
+            if (amount > 10000) {
+                error.textContent = 'Максимум 10000$';
+                error.style.display = 'block';
+                return;
+            }
+
             selectedDepositAmount = amount;
-            document.getElementById('selectedDepositAmount').textContent = amount + '$';
             document.getElementById('depositAddress').value = 'Создаём счёт...';
             document.getElementById('depositMemo').value = '';
             document.getElementById('depositInstructions').style.display = 'block';
@@ -2142,6 +2225,83 @@
             document.getElementById('depositModal').classList.remove('open');
         }
 
+        function showWithdrawModal() {
+            toggleSidebar();
+            setTimeout(() => {
+                document.getElementById('withdrawAmount').value = '';
+                document.getElementById('withdrawAddress').value = '';
+                document.getElementById('withdrawError').style.display = 'none';
+                document.getElementById('withdrawSum').textContent = '0$';
+                document.getElementById('withdrawReceive').textContent = '0$';
+                document.getElementById('withdrawModal').classList.add('open');
+            }, 300);
+        }
+
+        function closeWithdrawModal() {
+            document.getElementById('withdrawModal').classList.remove('open');
+        }
+
+        function validateWithdrawInput() {
+            const amount = parseFloat(document.getElementById('withdrawAmount').value) || 0;
+            const error = document.getElementById('withdrawError');
+            const receive = Math.max(0, amount - 1);
+            document.getElementById('withdrawSum').textContent = amount + '$';
+            document.getElementById('withdrawReceive').textContent = receive.toFixed(2) + '$';
+            if (amount > 0 && amount < 10) {
+                error.textContent = 'Минимальная сумма 10$';
+                error.style.display = 'block';
+                return false;
+            }
+            if (amount > user.balance) {
+                error.textContent = 'Недостаточно средств';
+                error.style.display = 'block';
+                return false;
+            }
+            error.style.display = 'none';
+            return true;
+        }
+
+        function submitWithdraw() {
+            const amount = parseFloat(document.getElementById('withdrawAmount').value) || 0;
+            const address = document.getElementById('withdrawAddress').value.trim();
+            const error = document.getElementById('withdrawError');
+
+            if (!validateWithdrawInput()) return;
+            if (!address) {
+                error.textContent = 'Введите адрес кошелька';
+                error.style.display = 'block';
+                return;
+            }
+            if (!address.startsWith('T') || address.length < 34) {
+                error.textContent = 'Неверный адрес USDT TRC20';
+                error.style.display = 'block';
+                return;
+            }
+
+            // Submit withdrawal request
+            fetch(BACKEND_URL + '/api/withdraw', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, amount: amount, address: address })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    user.balance -= amount;
+                    updateProfile();
+                    alert(`Заявка на вывод ${amount}$ отправлена!`);
+                    closeWithdrawModal();
+                } else {
+                    error.textContent = data.error || 'Ошибка';
+                    error.style.display = 'block';
+                }
+            })
+            .catch(e => {
+                error.textContent = 'Ошибка соединения';
+                error.style.display = 'block';
+            });
+        }
+
         function confirmDeposit() {
             const depositId = document.getElementById('depositId').value;
             if (!depositId) return;
@@ -2163,6 +2323,23 @@
                     closeDepositModal();
                 }
             });
+        }
+
+        /* Wheel celebration animations */
+        @keyframes wheelCelebrate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        @keyframes prizePop {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes prizeShake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
         }
 
         // ===== INIT =====

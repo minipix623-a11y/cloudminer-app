@@ -950,9 +950,10 @@
     <header class="header">
         <button class="menu-btn" onclick="toggleSidebar()">☰</button>
         <span class="header-title">⚡ DuckMiner</span>
-        <div class="header-balance">
+        <div class="header-balance" onclick="topUpBalance()" style="cursor: pointer;">
             <div class="header-balance-icon"></div>
             <span id="headerBalance">0</span>
+            <span style="color: var(--accent); font-size: 14px;">+</span>
         </div>
     </header>
 
@@ -1194,26 +1195,24 @@
             </div>
             <div id="depositAmounts" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;"></div>
             <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; display: none;" id="depositInstructions">
-                <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Отправьте USDT (TRC20) на адрес:</div>
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">💳 Ссылка для оплаты:</div>
                 <div style="margin-bottom: 12px;">
-                    <input type="text" id="depositAddress" readonly style="width: 100%; background: var(--bg-secondary); border: none; padding: 10px; border-radius: 8px; color: var(--text-primary); font-size: 12px;">
-                    <button class="copy-btn" onclick="copyDepositAddress()" style="margin-top: 8px;">📋 Копировать адрес</button>
+                    <input type="text" id="depositAddress" readonly style="width: 100%; background: var(--bg-secondary); border: none; padding: 10px; border-radius: 8px; color: var(--text-primary); font-size: 11px; word-break: break-all;">
+                    <button class="copy-btn" onclick="copyDepositAddress()" style="margin-top: 8px;">📋 Копировать ссылку</button>
                 </div>
-                <div style="margin-bottom: 12px;">
-                    <div style="font-size: 12px; color: var(--text-secondary);">Memo (обязательно!):</div>
-                    <input type="text" id="depositMemo" readonly style="width: 100%; background: var(--bg-secondary); border: none; padding: 10px; border-radius: 8px; color: var(--warning); font-size: 14px; font-weight: 600;">
-                    <button class="copy-btn" onclick="copyDepositMemo()" style="margin-top: 8px;">📋 Копировать Memo</button>
-                </div>
-                <div style="font-size: 11px; color: var(--danger); margin-bottom: 12px;">
-                    ⚠️ Не забудьте указать Memo! Без него платёж не будет зачислен.
+                <div style="margin-bottom: 12px; font-size: 12px; color: var(--text-secondary);">
+                    <span id="depositMemo">Скопируйте ссылку и откройте в браузере для оплаты</span>
                 </div>
                 <input type="hidden" id="depositId" value="">
-                <button class="pay-btn" style="width: 100%;" onclick="confirmDeposit()">
-                    ✅ Я отправил(а) - зачислить средства
+                <button class="pay-btn" style="width: 100%; background: var(--accent); color: #000;" onclick="payNow()">
+                    🌐 Оплатить NOWPayments
+                </button>
+                <button class="pay-btn" style="width: 100%; margin-top: 8px;" onclick="confirmDeposit()">
+                    ✅ Я оплатил(а) - зачислить
                 </button>
             </div>
             <div style="font-size: 12px; color: var(--text-secondary); text-align: center; margin-top: 12px;">
-                Пополнение через USDT (TRC20)
+                💳 Оплата через NOWPayments (USDT, BTC, ETH)
             </div>
             <button class="pay-btn" style="margin-top: 10px; background: var(--bg-card); color: var(--text-primary);" onclick="closeDepositModal()">Закрыть</button>
         </div>
@@ -2082,11 +2081,11 @@
         function selectDepositAmount(amount) {
             selectedDepositAmount = amount;
             document.getElementById('selectedDepositAmount').textContent = amount + '$';
-            document.getElementById('depositAddress').value = 'Создаём адрес...';
+            document.getElementById('depositAddress').value = 'Создаём счёт...';
             document.getElementById('depositMemo').value = '';
             document.getElementById('depositInstructions').style.display = 'block';
 
-            // Create deposit via API
+            // Create deposit via NOWPayments API
             fetch(BACKEND_URL + '/api/deposit/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2094,10 +2093,14 @@
             })
             .then(r => r.json())
             .then(data => {
-                if (data.success) {
-                    document.getElementById('depositAddress').value = data.address;
-                    document.getElementById('depositMemo').value = data.memo;
+                if (data.success && data.invoice_url) {
+                    document.getElementById('depositAddress').value = data.invoice_url;
+                    document.getElementById('depositMemo').value = 'Скопируйте ссылку и оплатите';
                     document.getElementById('depositId').value = data.deposit_id;
+                    // Store invoice_url for payment
+                    window.currentInvoiceUrl = data.invoice_url;
+                } else {
+                    document.getElementById('depositAddress').value = 'Ошибка: ' + (data.error || 'Неизвестно');
                 }
             })
             .catch(e => {
@@ -2105,11 +2108,18 @@
             });
         }
 
+        function payNow() {
+            const url = window.currentInvoiceUrl;
+            if (url) {
+                window.open(url, '_blank');
+            }
+        }
+
         function copyDepositAddress() {
             const addr = document.getElementById('depositAddress').value;
-            if (addr && addr !== 'Создаём адрес...' && addr !== 'Ошибка соединения') {
+            if (addr && addr !== 'Создаём счёт...' && !addr.startsWith('Ошибка')) {
                 navigator.clipboard.writeText(addr);
-                alert('Адрес скопирован!');
+                alert('Ссылка скопирована! Откройте её в браузере для оплаты.');
             }
         }
 

@@ -1185,6 +1185,40 @@
         </div>
     </div>
 
+    <!-- Deposit Modal -->
+    <div class="modal-overlay" id="depositModal">
+        <div class="modal" style="max-width: 400px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-title">💰 Пополнение баланса</div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                Выберите сумму для пополнения:
+            </div>
+            <div id="depositAmounts" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;"></div>
+            <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; display: none;" id="depositInstructions">
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Отправьте USDT (TRC20) на адрес:</div>
+                <div style="margin-bottom: 12px;">
+                    <input type="text" id="depositAddress" readonly style="width: 100%; background: var(--bg-secondary); border: none; padding: 10px; border-radius: 8px; color: var(--text-primary); font-size: 12px;">
+                    <button class="copy-btn" onclick="copyDepositAddress()" style="margin-top: 8px;">📋 Копировать адрес</button>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 12px; color: var(--text-secondary);">Memo (обязательно!):</div>
+                    <input type="text" id="depositMemo" readonly style="width: 100%; background: var(--bg-secondary); border: none; padding: 10px; border-radius: 8px; color: var(--warning); font-size: 14px; font-weight: 600;">
+                    <button class="copy-btn" onclick="copyDepositMemo()" style="margin-top: 8px;">📋 Копировать Memo</button>
+                </div>
+                <div style="font-size: 11px; color: var(--danger); margin-bottom: 12px;">
+                    ⚠️ Не забудьте указать Memo! Без него платёж не будет зачислен.
+                </div>
+                <input type="hidden" id="depositId" value="">
+                <button class="pay-btn" style="width: 100%;" onclick="confirmDeposit()">
+                    ✅ Я отправил(а) - зачислить средства
+                </button>
+            </div>
+            <div style="font-size: 12px; color: var(--text-secondary); text-align: center; margin-top: 12px;">
+                Пополнение через USDT (TRC20)
+            </div>
+            <button class="pay-btn" style="margin-top: 10px; background: var(--bg-card); color: var(--text-primary);" onclick="closeDepositModal()">Закрыть</button>
+        </div>
+    </div>
+
     <!-- Single Miner Upgrade Modal -->
     <div class="modal-overlay" id="singleUpgradeModal">
         <div class="modal" style="max-width: 360px; text-align: center;">
@@ -1330,6 +1364,9 @@
             19: 20,
             20: 15,
         };
+
+        // ===== CONFIG =====
+        const BACKEND_URL = 'http://31.129.99.202:3000';
 
         // ===== STATE =====
         let user = {
@@ -2025,11 +2062,90 @@
         // ===== TOP UP (DEMO) =====
         function topUpBalance() {
             toggleSidebar();
-            user.balance += 100;
-            user.totalEarned += 100;
-            updateProfile();
-            renderMiners();
-            alert('+100 $ добавлено (демо-режим)');
+            setTimeout(() => {
+                document.getElementById('depositModal').classList.add('open');
+            }, 300);
+        }
+
+        // ===== DEPOSIT MODAL =====
+        function showDepositModal() {
+            const amounts = [10, 25, 50, 100, 250, 500];
+            const container = document.getElementById('depositAmounts');
+            container.innerHTML = amounts.map(a => `
+                <button class="pay-btn" style="flex: 1; min-width: 80px; margin: 4px;" onclick="selectDepositAmount(${a})">${a}$</button>
+            `).join('');
+            document.getElementById('depositModal').classList.add('open');
+        }
+
+        let selectedDepositAmount = 0;
+
+        function selectDepositAmount(amount) {
+            selectedDepositAmount = amount;
+            document.getElementById('selectedDepositAmount').textContent = amount + '$';
+            document.getElementById('depositAddress').value = 'Создаём адрес...';
+            document.getElementById('depositMemo').value = '';
+            document.getElementById('depositInstructions').style.display = 'block';
+
+            // Create deposit via API
+            fetch(BACKEND_URL + '/api/deposit/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, amount: amount })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('depositAddress').value = data.address;
+                    document.getElementById('depositMemo').value = data.memo;
+                    document.getElementById('depositId').value = data.deposit_id;
+                }
+            })
+            .catch(e => {
+                document.getElementById('depositAddress').value = 'Ошибка соединения';
+            });
+        }
+
+        function copyDepositAddress() {
+            const addr = document.getElementById('depositAddress').value;
+            if (addr && addr !== 'Создаём адрес...' && addr !== 'Ошибка соединения') {
+                navigator.clipboard.writeText(addr);
+                alert('Адрес скопирован!');
+            }
+        }
+
+        function copyDepositMemo() {
+            const memo = document.getElementById('depositMemo').value;
+            if (memo) {
+                navigator.clipboard.writeText(memo);
+                alert('Memo скопирован!');
+            }
+        }
+
+        function closeDepositModal() {
+            document.getElementById('depositModal').classList.remove('open');
+        }
+
+        function confirmDeposit() {
+            const depositId = document.getElementById('depositId').value;
+            if (!depositId) return;
+
+            // For demo: auto-confirm after user clicks
+            // In production: verify blockchain tx first
+            fetch(BACKEND_URL + '/api/deposit/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id, deposit_id: depositId, tx_hash: 'demo_' + depositId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    user.balance += selectedDepositAmount;
+                    user.totalEarned += selectedDepositAmount;
+                    updateProfile();
+                    alert('+' + selectedDepositAmount + '$ зачислено!');
+                    closeDepositModal();
+                }
+            });
         }
 
         // ===== INIT =====
